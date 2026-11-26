@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colour Harmony Reference</title>
+<style>
+  :root {
+    color-scheme: dark;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #17191d;
+    color: #f3f4f6;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 20px 14px 32px;
+  }
+
+  main {
+    max-width: 560px;
+    margin: auto;
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    margin: 0 0 6px;
+  }
+
+  .intro {
+    color: #c4c8d0;
+    font-size: .92rem;
+    line-height: 1.45;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 18px 0;
+  }
+
+  .control label {
+    display: block;
+    font-size: .82rem;
+    color: #c4c8d0;
+    margin-bottom: 5px;
+  }
+
+  select {
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 10px;
+    border: 1px solid #555b66;
+    border-radius: 8px;
+    color: #fff;
+    background: #252932;
+    font: inherit;
+  }
+
+  .slider-control {
+    grid-column: 1 / -1;
+  }
+
+  .slider-control[hidden] {
+    display: none;
+  }
+
+  input[type="range"] {
+    width: 100%;
+    accent-color: #f3f4f6;
+    min-height: 28px;
+  }
+
+  .wheel-wrap {
+    width: min(92vw, 430px);
+    margin: 16px auto;
+  }
+
+  svg {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    justify-content: center;
+    margin: 14px 0;
+  }
+
+  .key {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .85rem;
+  }
+
+  .dot {
+    width: 14px;
+    height: 14px;
+    border: 1px solid #fff8;
+    border-radius: 50%;
+  }
+
+  .details {
+    border-top: 1px solid #414650;
+    padding-top: 12px;
+    margin-top: 12px;
+  }
+
+  .details h2 {
+    font-size: 1rem;
+    margin: 0 0 5px;
+  }
+
+  .details p {
+    color: #d1d5dc;
+    line-height: 1.45;
+    margin: 0;
+  }
+
+  @media (max-width: 420px) {
+    body { padding-inline: 12px; }
+    .controls { grid-template-columns: 1fr; gap: 9px; }
+    .slider-control { grid-column: auto; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Colour Harmony Reference</h1>
+  <p class="intro">
+    Choose a wheel and harmony. The slider changes the base hue; outlined
+    wedges show the hues in the selected scheme.
+  </p>
+
+  <div class="controls">
+    <div class="control">
+      <label for="wheelType">Colour wheel</label>
+      <select id="wheelType">
+        <option value="hsv">RGB / HSV-style</option>
+        <option value="hsl">HSL-style</option>
+        <option value="ryb">Traditional RYB-style</option>
+        <option value="darktable">Darktable color harmonizer-style</option>
+      </select>
+    </div>
+
+    <div class="control">
+      <label for="harmony">Harmony</label>
+      <select id="harmony">
+        <option value="none">No color harmony</option>
+        <option value="mono">Monochromatic</option>
+        <option value="analogous">Analogous</option>
+        <option value="analogousComplement">Analogous complementary</option>
+        <option value="complementary">Complementary</option>
+        <option value="split">Split-complementary</option>
+        <option value="triadic">Triadic</option>
+        <option value="double">Double complementary</option>
+        <option value="dyadic">Dyadic</option>
+      </select>
+    </div>
+
+    <div class="control slider-control">
+      <label for="baseAngle">
+        Base hue: <span id="baseAngleValue">0°</span>
+      </label>
+      <input
+        id="baseAngle"
+        type="range"
+        min="0"
+        max="359"
+        value="0"
+        aria-label="Rotate the base hue around the colour wheel">
+    </div>
+
+    <div class="control slider-control" id="lightnessControl" hidden>
+      <label for="hslLightness">
+        HSL lightness: <span id="hslLightnessValue">50%</span>
+      </label>
+      <input
+        id="hslLightness"
+        type="range"
+        min="0"
+        max="100"
+        value="50"
+        aria-label="Adjust HSL lightness">
+    </div>
+  </div>
+
+  <div class="wheel-wrap">
+    <svg id="wheel" viewBox="0 0 400 400"
+         role="img" aria-label="Colour wheel showing the selected harmony"></svg>
+  </div>
+
+  <div id="legend" class="legend" aria-live="polite"></div>
+
+  <section class="details">
+    <h2 id="schemeTitle"></h2>
+    <p id="schemeDescription"></p>
+  </section>
+
+  <section class="details">
+    <h2 id="wheelTitle"></h2>
+    <p id="wheelDescription"></p>
+  </section>
+</main>
+
+<script>
+const schemes = {
+  none: {
+    title: "No color harmony",
+    offsets: [],
+    text: "No harmony markers are shown. Use the wheel to explore hues and saturation."
+  },
+  mono: {
+    title: "Monochromatic",
+    offsets: [0],
+    text: "One hue. A complete monochromatic palette can also vary its saturation and lightness."
+  },
+  analogous: {
+    title: "Analogous",
+    offsets: [-30, 0, 30],
+    text: "Three neighbouring hues: the base colour plus one on either side."
+  },
+  analogousComplement: {
+    title: "Analogous complementary",
+    offsets: [-30, 0, 30, 180],
+    text: "A group of neighbouring hues paired with the complement of the base hue."
+  },
+  complementary: {
+    title: "Complementary",
+    offsets: [0, 180],
+    text: "Two hues opposite each other on the wheel."
+  },
+  split: {
+    title: "Split-complementary",
+    offsets: [0, 150, 210],
+    text: "The base hue plus the two hues beside its complement."
+  },
+  triadic: {
+    title: "Triadic",
+    offsets: [0, 120, 240],
+    text: "Three hues spaced evenly around the wheel."
+  },
+  double: {
+    title: "Double complementary",
+    offsets: [0, 30, 180, 210],
+    text: "Two complementary pairs, with the pairs offset from each other."
+  },
+  dyadic: {
+    title: "Dyadic",
+    offsets: [0, 90],
+    text: "For this guide, a dyad means two hues 90° apart."
+  }
+};
+
+const wheelDescriptions = {
+  hsv: {
+    title: "RGB / HSV-style wheel",
+    text: "Hue changes around the wheel. HSV value (brightness) is fixed at 100%; distance from the center shows saturation, from white at the center to fully saturated colour at the rim."
+  },
+  hsl: {
+    title: "HSL-style wheel",
+    text: "Hue changes around the wheel, while lightness is set by the slider. Distance from the center shows saturation: the center is neutral at the selected lightness, and colours become more saturated toward the rim."
+  },
+  ryb: {
+    title: "Traditional RYB-style wheel",
+    text: "This approximate artist’s wheel follows a traditional red, orange, yellow, green, blue, and violet sequence. Distance from the center shows saturation, increasing from white toward the rim."
+  },
+  darktable: {
+    title: "Darktable color harmonizer-style wheel",
+    text: "This is a simplified Darktable-inspired display: hues run around the wheel, and distance from the center shows increasing saturation toward the rim. The dark center is a visual reference, not a reproduction of Darktable’s full color model."
+  }
+};
+
+const svg = document.getElementById("wheel");
+const harmonySelect = document.getElementById("harmony");
+const wheelSelect = document.getElementById("wheelType");
+const baseAngleInput = document.getElementById("baseAngle");
+const hslLightnessInput = document.getElementById("hslLightness");
+const lightnessControl = document.getElementById("lightnessControl");
+
+function normalise(degrees) {
+  return ((degrees % 360) + 360) % 360;
+}
+
+// Approximate traditional artist-wheel sequence, clockwise from red.
+// Saturation is blended from white at the center to full colour at the rim.
+function rybHue(degrees, saturation = 100) {
+  const stops = [
+    [0,   [255, 0, 0]],
+    [60,  [255, 128, 0]],
+    [120, [255, 255, 0]],
+    [180, [0, 160, 0]],
+    [240, [0, 70, 220]],
+    [300, [130, 0, 150]],
+    [360, [255, 0, 0]]
+  ];
+
+  const angle = normalise(degrees);
+  let rgb = [255, 0, 0];
+
+  for (let i = 0; i < stops.length - 1; i++) {
+    const [d1, c1] = stops[i];
+    const [d2, c2] = stops[i + 1];
+
+    if (angle >= d1 && angle <= d2) {
+      const t = (angle - d1) / (d2 - d1);
+      rgb = c1.map((value, j) =>
+        Math.round(value + (c2[j] - value) * t)
+      );
+      break;
+    }
+  }
+
+  const amount = Math.max(0, Math.min(100, saturation)) / 100;
+  const blended = rgb.map(value =>
+    Math.round(255 + (value - 255) * amount)
+  );
+
+  return `rgb(${blended.join(" ")})`;
+}
+
+function hueColour(degrees, type, saturation = 100) {
+  const angle = normalise(degrees);
+  const sat = Math.max(0, Math.min(100, saturation));
+
+  if (type === "ryb") {
+    return rybHue(angle, sat);
+  }
+
+  if (type === "hsv") {
+    // HSV: value remains 100%; saturation increases from white to the rim.
+    const s = sat / 100;
+    const chroma = s;
+    const x = chroma * (1 - Math.abs((angle / 60) % 2 - 1));
+    const m = 1 - chroma;
+    let rgb;
+
+    if (angle < 60) rgb = [chroma, x, 0];
+    else if (angle < 120) rgb = [x, chroma, 0];
+    else if (angle < 180) rgb = [0, chroma, x];
+    else if (angle < 240) rgb = [0, x, chroma];
+    else if (angle < 300) rgb = [x, 0, chroma];
+    else rgb = [chroma, 0, x];
+
+    const channels = rgb.map(value =>
+      Math.round((value + m) * 255)
+    );
+
+    return `rgb(${channels.join(" ")})`;
+  }
+
+  // HSL and the simplified Darktable-style display use a continuous hue order.
+  const lightness = type === "hsl"
+    ? Number(hslLightnessInput.value)
+    : 50;
+
+  return `hsl(${angle} ${sat}% ${lightness}%)`;
+}
+
+function pointAt(cx, cy, radius, angleDegrees) {
+  const radians = (angleDegrees - 90) * Math.PI / 180;
+  return {
+    x: cx + radius * Math.cos(radians),
+    y: cy + radius * Math.sin(radians)
+  };
+}
+
+function annularSectorPath(cx, cy, innerRadius, outerRadius, start, end) {
+  const a = pointAt(cx, cy, outerRadius, start);
+  const b = pointAt(cx, cy, outerRadius, end);
+  const c = pointAt(cx, cy, innerRadius, end);
+  const d = pointAt(cx, cy, innerRadius, start);
+  const largeArc = end - start > 180 ? 1 : 0;
+
+  return [
+    `M ${a.x} ${a.y}`,
+    `A ${outerRadius} ${outerRadius} 0 ${largeArc} 1 ${b.x} ${b.y}`,
+    `L ${c.x} ${c.y}`,
+    `A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${d.x} ${d.y}`,
+    "Z"
+  ].join(" ");
+}
+
+function wedgePath(cx, cy, radius, start, end) {
+  const a = pointAt(cx, cy, radius, start);
+  const b = pointAt(cx, cy, radius, end);
+  const largeArc = end - start > 180 ? 1 : 0;
+
+  return [
+    `M ${cx} ${cy}`,
+    `L ${a.x} ${a.y}`,
+    `A ${radius} ${radius} 0 ${largeArc} 1 ${b.x} ${b.y}`,
+    "Z"
+  ].join(" ");
+}
+
+function render() {
+  const scheme = schemes[harmonySelect.value];
+  const type = wheelSelect.value;
+  const baseAngle = Number(baseAngleInput.value);
+  const cx = 200;
+  const cy = 200;
+  const outer = 184;
+  const parts = [];
+
+  document.getElementById("baseAngleValue").textContent = `${baseAngle}°`;
+  document.getElementById("hslLightnessValue").textContent =
+    `${hslLightnessInput.value}%`;
+  lightnessControl.hidden = type !== "hsl";
+
+  const slices = 72;
+  const rings = 7;
+
+  // Draw the wheel with saturation increasing from center to rim.
+  for (let i = 0; i < slices; i++) {
+    const start = i * 360 / slices;
+    const end = (i + 1) * 360 / slices;
+    const middle = (start + end) / 2;
+
+    for (let ring = 0; ring < rings; ring++) {
+      const innerRadius = outer * ring / rings;
+      const outerRadius = outer * (ring + 1) / rings;
+      const saturation = Math.round((ring + 1) / rings * 100);
+      const colour = hueColour(middle, type, saturation);
+
+      parts.push(
+        `<path d="${annularSectorPath(cx, cy, innerRadius, outerRadius, start, end)}"
+          fill="${colour}" stroke="#17191d" stroke-opacity=".22" stroke-width=".7"/>`
+      );
+    }
+  }
+
+  // Simplified dark center for the Darktable-inspired option.
+  if (type === "darktable") {
+    parts.push(`<circle cx="${cx}" cy="${cy}" r="68" fill="#22252a" fill-opacity=".88"/>`);
+    parts.push(`<circle cx="${cx}" cy="${cy}" r="68" fill="none" stroke="#ffffff" stroke-opacity=".18"/>`);
+  }
+
+  // Harmony wedges use the same saturation progression as the selected wheel.
+  const wedgeWidth = 30;
+
+  scheme.offsets.forEach(offset => {
+    const angle = normalise(baseAngle + offset);
+    const start = angle - wedgeWidth / 2;
+    const end = angle + wedgeWidth / 2;
+
+    for (let ring = 0; ring < rings; ring++) {
+      const innerRadius = outer * ring / rings;
+      const outerRadius = outer * (ring + 1) / rings;
+      const saturation = Math.round((ring + 0.5) / rings * 100);
+      const colour = hueColour(angle, type, saturation);
+
+      const path = ring === 0
+        ? wedgePath(cx, cy, outerRadius, start, end)
+        : annularSectorPath(cx, cy, innerRadius, outerRadius, start, end);
+
+      parts.push(
+        `<path d="${path}" fill="${colour}" fill-opacity=".96" stroke="none"/>`
+      );
+    }
+
+    // One white outline around the full wedge.
+    parts.push(
+      `<path d="${wedgePath(cx, cy, outer, start, end)}"
+        fill="none" stroke="white" stroke-width="2"/>`
+    );
+  });
+
+  const centerColour = type === "hsl"
+    ? `hsl(0 0% ${hslLightnessInput.value}%)`
+    : type === "darktable"
+      ? "#22252a"
+      : "#fff";
+
+  parts.push(
+    `<circle cx="${cx}" cy="${cy}" r="5" fill="${centerColour}" stroke="#222" stroke-width="1"/>`
+  );
+
+  svg.innerHTML = parts.join("");
+
+  document.getElementById("schemeTitle").textContent = scheme.title;
+  document.getElementById("schemeDescription").textContent = scheme.text;
+
+  const wheelInfo = wheelDescriptions[type];
+  document.getElementById("wheelTitle").textContent = wheelInfo.title;
+  document.getElementById("wheelDescription").textContent = wheelInfo.text;
+
+  document.getElementById("legend").innerHTML = scheme.offsets.map(offset => {
+    const angle = normalise(baseAngle + offset);
+    const colour = hueColour(angle, type, 100);
+    const label = offset === 0
+      ? "Base hue"
+      : `${offset > 0 ? "+" : ""}${offset}° from base`;
+
+    return `<span class="key">
+      <i class="dot" style="background:${colour}"></i>${label}
+    </span>`;
+  }).join("");
+}
+
+harmonySelect.addEventListener("change", render);
+wheelSelect.addEventListener("change", render);
+baseAngleInput.addEventListener("input", render);
+hslLightnessInput.addEventListener("input", render);
+
+function resetSliders() {
+  baseAngleInput.value = 0;
+  hslLightnessInput.value = 50;
+  render();
+}
+
+baseAngleInput.addEventListener("dblclick", () => {
+  baseAngleInput.value = 0;
+  render();
+});
+
+hslLightnessInput.addEventListener("dblclick", () => {
+  hslLightnessInput.value = 50;
+  render();
+});
+  
+render();
+</script>
+</body>
+</html>
